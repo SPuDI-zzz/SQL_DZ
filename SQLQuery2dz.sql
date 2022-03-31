@@ -302,3 +302,105 @@ SELECT course
 FROM students
 GROUP BY course, [group]
 HAVING COUNT(*) >= 25;
+
+/*-------------------------------------------------------------------------------------------------------------------------------------------------
+  31 03 2022
+-------------------------------------------------------------------------------------------------------------------------------------------------*/ 
+
+/*1. Выбрать название факультета и фамилию имя отчество декана факультета. Результат отсортировать по названию факультета в лексикографическом порядке.*/
+SELECT fct.name, tcr.surname + ' ' + tcr.name + ' ' + ISNULL(tcr.patronymic,'') 'ФИО'
+FROM faculties fct 
+	JOIN teachers tcr ON (fct.dean_id = tcr.id)
+ORDER BY 1;
+
+/*2. Выбрать все данные о деканах, которые преподают математический анализ.*/
+SELECT tcr.*
+FROM faculties fct
+	JOIN teachers tcr ON fct.id = tcr.faculty_id
+	JOIN performance prm ON tcr.id = prm.teacher_id
+	JOIN disciplines dcp ON dcp.id = prm.discipline_id
+WHERE dcp.name = 'математический анализ';
+
+/*3. Выбрать фамилию, имя, отчество преподавателей в одном столбце, во втором столбце название должности, дату вступления и дату выхода из должности.*/
+SELECT tcr.surname + ' ' + tcr.name + ' ' + ISNULL(tcr.patronymic,'') 'ФИО', pst.name + ' ' + CAST(pst_tcr.entry_date AS nvarchar(21)) + ISNULL(' ' + CAST(pst_tcr.leave_date AS nvarchar(21)),'') 'название должности, дату вступления и дату выхода из должности' 
+FROM teachers tcr
+	JOIN post_teachers pst_tcr ON tcr.id = pst_tcr.teacher_id
+	JOIN posts pst ON pst.id = pst_tcr.post_id;
+
+/*4. Выбрать фамилию и инициалы преподавателя в одном столбце, во втором столбце название текущей должности, т.е. актуальной на данный момент.*/
+SELECT tcr.surname + ' '+ LEFT(tcr.name,1) + '.' + ISNULL(' '+LEFT(tcr.patronymic, 1)+'.',' ') 'ФИО', pst.name 'название должности' 
+FROM teachers tcr
+	JOIN post_teachers pst_tcr ON tcr.id = pst_tcr.teacher_id
+	JOIN posts pst ON pst.id = pst_tcr.post_id
+WHERE pst_tcr.leave_date IS NULL;
+
+/*5. Найти однофамильцев среди преподавателей и студентов.*/
+SELECT tcr.surname + ' ' + tcr.name + ' ' + ISNULL(tcr.patronymic, '') 'Преподаватель', std.surname + ' ' + std.name + ' ' + ISNULL(std.patronymic, '') 'Студент'
+FROM students std
+	JOIN teachers tcr ON std.surname = tcr.surname;
+
+/*6. Выбрать название факультета, курс, группу, фамилию и инициалы студентов, которые учатся на факультете, название дисциплины, дату экзамена,
+оценку, фамилию и инициалы преподавателя, поставившего оценку и название текущей должности преподавателя.
+Результат отсортировать по названию факультета в порядке обратном лексикографическому, по курсу и группе в возрастающем порядке, по фамилии, имени, отчеству студентов в лексикографическом порядке.*/
+SELECT fct.name, std.course, std.[group], std.surname + ' ' + LEFT(std.name,1) + ' ' + ISNULL(std.patronymic,'') 'ФИО студента', dcp.name, prm.date,
+	prm.mark, tcr.surname + ' '+ LEFT(tcr.name,1) + '.' + ISNULL(' '+LEFT(tcr.patronymic, 1)+'.',' ') 'ФИО преподавателя', pst.name
+FROM faculties fct
+	JOIN students std ON fct.id = std.faculty_id
+	JOIN performance prm ON std.id = prm.student_number_id
+	JOIN disciplines dcp ON dcp.id = prm.discipline_id
+	JOIN teachers tcr ON tcr.id = prm.teacher_id
+	JOIN post_teachers pst_tcr ON tcr.id = pst_tcr.teacher_id 
+	JOIN posts pst ON pst.id = pst_tcr.post_id
+ORDER BY 1 DESC, 2, 3, std.surname, std.name, std.patronymic;
+
+/*7. Для каждой дисциплины, сдававшейся в зимнюю сессию текущего учебного года, вывести название, фамилию и инициалы преподавателя, среднюю оценку по дисциплине,
+количество студентов, сдавших дисциплину на отлично, количество студентов, сдавших дисциплину хорошо, количество студентов, сдавших дисциплину удовлетворительно,
+количество студентов, не сдавших дисциплину, общее количество студентов, сдававших дисциплину.*/
+SELECT dcp.name, tcr.surname + ' ' + LEFT(tcr.name,1) + ' ' + ISNULL(tcr.patronymic,'') 'ФИО преподавателя', AVG(prm.mark) 'среднюю оценку по дисциплине', COUNT(CASE WHEN prm.mark = 5 THEN 1 ELSE NULL END) 'количество студентов, сдавших дисциплину на отлично',
+	COUNT(CASE WHEN prm.mark = 4 THEN 1 ELSE NULL END) 'количество студентов, сдавших дисциплину хорошо', COUNT(CASE WHEN prm.mark = 3 THEN 1 ELSE NULL END) 'количество студентов, сдавших дисциплину удовлетворительно',
+	COUNT(CASE WHEN prm.mark = 2 OR prm.mark IS NULL THEN 1 ELSE NULL END) 'количество студентов, не сдавших дисциплину', COUNT(CASE WHEN prm.mark IN (5,4,3) THEN 1 ELSE NULL END) 'общее количество студентов, сдававших дисциплину'
+FROM disciplines dcp
+	JOIN performance prm ON dcp.id = prm.discipline_id
+	JOIN teachers tcr ON tcr.id = prm.teacher_id
+WHERE MONTH(prm.date) = 1 AND YEAR(prm.date) = YEAR(GETDATE()) OR MONTH(prm.date) = 12 AND YEAR(prm.date) = YEAR(GETDATE()) - 1
+GROUP BY dcp.id, dcp.name, tcr.id, tcr.surname, tcr.name, tcr.patronymic;
+
+/*8. Выбрать название факультета, фамилию и инициалы студентов, название дисциплины, дату, оценку, фамилию и инициалы преподавателя, текущую должность преподавателя.*/
+SELECT fct.name, std.surname + ' ' + LEFT(std.name,1) + ' ' + ISNULL(std.patronymic,'') 'ФИО студента', dcp.name, prm.date, prm.mark, tcr.surname + ' ' + LEFT(tcr.name,1) + ' ' + ISNULL(tcr.patronymic,'') 'ФИО преподавателя', pst.name
+FROM faculties fct
+	JOIN students std ON fct.id = std.faculty_id
+	JOIN performance prm ON std.id = prm.student_number_id
+	JOIN teachers tcr ON tcr.id = prm.teacher_id
+	JOIN disciplines dcp ON dcp.id = prm.discipline_id
+	JOIN post_teachers pst_tcr ON tcr.id = pst_tcr.teacher_id
+	JOIN posts pst ON pst.id = pst_tcr.post_id;
+
+/*9. Выбрать фамилию, имя, отчество всех преподавателей, и, если преподаватель имеет руководителя, то фамилию и инициалы его руководителя.*/
+SELECT tcr.surname, tcr.name, ISNULL(tcr.patronymic,'') 'patronymic', ISNULL(t.surname + ' '+ LEFT(t.name,1) + '.' + ISNULL(' '+LEFT(t.patronymic, 1)+'.',' '),'') 'ФИО преподавателя'
+FROM teachers tcr
+	LEFT JOIN teachers t ON tcr.head_of_teacher_id = t.id;
+
+/*10. Выбрать курс, группу, фамилию, имя, отчество студента, и, если студент сдал дисциплину на 5, то название дисциплины.*/
+SELECT std.course, std.[group], std.surname, std.name, ISNULL(std.patronymic,'') 'patronymic', CASE WHEN prm.mark = 5 THEN dcp.name ELSE '' END 'название дисциплины'
+FROM disciplines dcp 
+	JOIN performance prm ON dcp.id = prm.discipline_id
+	JOIN students std ON std.id = prm.student_number_id;
+
+/*12. Выбрать названия всех факультетов и фамилии и инициалы деканов. Учесть, что в БД могут быть факультеты, для которых не указан декан. Результат отсортировать по названию факультета в лексикографическом порядке.*/
+SELECT fct.name, ISNULL(tcr.surname + ' '+ LEFT(tcr.name,1) + '.' + ISNULL(' '+LEFT(tcr.patronymic, 1)+'.',' '),'') 'ФИО преподавателя'
+FROM faculties fct
+	LEFT JOIN teachers tcr ON fct.dean_id = tcr.id
+ORDER BY 1;
+
+/*13. Выбрать названия всех должностей и количество преподавателей в соответствующей должности на данный момент. Учесть, что в БД могут быть вакантные должности.*/
+SELECT pst.name, COUNT(pst_tcr.teacher_id) 'количество преподавателей в соответствующей должности на данный момент'
+FROM post_teachers pst_tcr
+	RIGHT JOIN posts pst ON pst.id = pst_tcr.post_id
+GROUP BY pst.id, pst.name;
+
+/*14. Выбрать курс, группу, фамилию, имя, отчество всех студентов, названия всех дисциплин как тех, которые сдавались студентами, так и тех, которые не сдавались, если дисциплина сдавалась студентом, то указать фамилию и инициалы преподавателя.*/
+SELECT std.course, std.[group], std.surname, std.name, ISNULL(std.patronymic,'') 'patronymic', dcp.name, ISNULL(tcr.surname + ' '+ LEFT(tcr.name,1) + '.' + ISNULL(' '+LEFT(tcr.patronymic, 1)+'.',' '),'') 'ФИО преподавателя'
+FROM students std
+	LEFT JOIN performance prm ON std.id = prm.student_number_id
+	FULL JOIN disciplines dcp ON dcp.id = prm.discipline_id
+	LEFT JOIN teachers tcr ON tcr.id = prm.teacher_id;
