@@ -465,7 +465,7 @@ SELECT fct.name, dcn.surname + ' ' + LEFT(dcn.name, 1) + '.' + ISNULL(' ' + LEFT
 FROM faculties fct
 	LEFT JOIN teachers tcr ON fct.id = tcr.faculty_id
 	LEFT JOIN teachers dcn ON fct.dean_id = dcn.id
-	JOIN students std ON fct.id = std.faculty_id
+	LEFT JOIN students std ON fct.id = std.faculty_id
 GROUP BY fct.id, fct.name, dcn.id, dcn.surname, dcn.name, dcn.patronymic;
 
 /*31. Выбрать все данные студента, который старше какого-нибудь преподавателя.*/
