@@ -404,3 +404,94 @@ FROM students std
 	LEFT JOIN performance prm ON std.id = prm.student_number_id
 	FULL JOIN disciplines dcp ON dcp.id = prm.discipline_id
 	LEFT JOIN teachers tcr ON tcr.id = prm.teacher_id;
+
+/*-------------------------------------------------------------------------------------------------------------------------------------------------
+  31 03 2022
+-------------------------------------------------------------------------------------------------------------------------------------------------*/ 
+
+/*0. Посчистать количество однофамильцев среди студентов.*/
+SELECT surname, COUNT(*) 'количество однофамильцев среди студентов'
+FROM students
+GROUP BY surname
+HAVING COUNT(*) > 1;
+
+/*15. Вывести названия всех дисциплин, и, если есть студенты, сдавшие этот предмет на 4 и 5, то количество таких студентов.*/
+SELECT dcp.name, COUNT(CASE WHEN prm.mark IN (4, 5) THEN 1 ELSE NULL END) 'количество студентов сдавшие на 4 и 5'
+FROM disciplines dcp
+	LEFT JOIN performance prm ON dcp.id = prm.discipline_id-- AND prm.mark IN (4, 5)
+GROUP BY dcp.id, dcp.name;
+
+/*16. Выбрать название факультета, фамилию, имя, отчество декана, количество преподавателей, работающих на факультете.*/
+SELECT fct.name, ISNULL(dcn.surname,'') 'surname', ISNULL(dcn.name,'') 'name', ISNULL(dcn.patronymic,'') 'patronymic', COUNT(tcr.id) 'количество преподавателей, работающих на факультете'
+FROM faculties fct
+	LEFT JOIN teachers tcr ON fct.id = tcr.faculty_id
+	LEFT JOIN teachers dcn ON dcn.id = fct.dean_id
+GROUP BY fct.id, fct.name, dcn.id, dcn.surname, dcn.name, dcn.patronymic;
+
+/*17. Вывести средний и суммарный баллы для каждого студента.*/
+SELECT ROUND(AVG(CAST(prm.mark AS float)),2) 'средний балл', SUM(prm.mark) 'суммарный балл' --ROUND(SUM(CAST(prm.mark AS float))/COUNT(prm.mark),2)
+FROM performance prm
+	RIGHT JOIN students std ON std.id = prm.student_number_id
+GROUP BY std.id;
+
+/*18. Выбрать фамилию, имя студента курс, группу, среднюю оценку студента.*/
+SELECT std.surname, std.name, std.course, std.[group], ROUND(AVG(CAST(prm.mark AS float)),2) 'средний балл'
+FROM students std
+	LEFT JOIN performance prm ON std.id = prm.student_number_id
+GROUP BY std.id, std.surname, std.name, std.course, std.[group];
+
+/*19. Выбрать названия всех дисциплин. Если есть студенты, сдавшие экзамен по дисциплине, то среднюю оценку.*/
+SELECT dcp.name, ISNULL(CAST(ROUND(AVG(CAST(prm.mark AS float)),2) AS nvarchar(4)),'') 'средний балл'--, ISNULL(ROUND(AVG(CAST(prm.mark AS float)),2),'') 'средний балл'
+FROM disciplines dcp
+	LEFT JOIN performance prm ON dcp.id = prm.discipline_id
+	--LEFT JOIN students std ON std.id = prm.student_number_id
+GROUP BY dcp.id, dcp.name;
+
+/*20. Выбрать количество студентов, получивших неудовлетворительные оценки за последнюю зимнюю сессию.*/
+SELECT COUNT(DISTINCT prm.student_number_id) 'количество студентов, получивших неудовлетворительные оценки за последнюю зимнюю сессию'
+FROM performance prm
+	--JOIN students std ON std.id = prm.student_number_id
+WHERE prm.mark = 2 AND (MONTH(prm.date) = 1 AND YEAR(prm.date) = YEAR(GETDATE()) OR MONTH(prm.date) = 12 AND YEAR(prm.date) = YEAR(GETDATE()) - 1);
+
+/*21. Выбрать день, в который было сдано больше N дисциплин.*/
+SELECT DAY(prm.date) 'Выбрать день, в который было сдано больше N дисциплин'
+FROM disciplines dcp
+	JOIN performance prm ON dcp.id = prm.discipline_id
+GROUP BY prm.date
+HAVING COUNT(*) > 1;
+
+/*22. Выбрать названия всех факультетов, фамилии и инициалы деканов, количество студентов и количество преподавателей на факультете. Учесть, что в БД могут быть факультеты, для которых не указан декан, а также для недавно созданных (новых) факультетов может еще не быть зачисленных студентов и/или преподавателей.*/
+SELECT fct.name, dcn.surname + ' ' + LEFT(dcn.name, 1) + '.' + ISNULL(' ' + LEFT(dcn.patronymic, 1) + '.','') 'Фамилия и инициалы', COUNT(DISTINCT std.id), COUNT(DISTINCT tcr.id) 
+FROM faculties fct
+	LEFT JOIN teachers tcr ON fct.id = tcr.faculty_id
+	LEFT JOIN teachers dcn ON fct.dean_id = dcn.id
+	JOIN students std ON fct.id = std.faculty_id
+GROUP BY fct.id, fct.name, dcn.id, dcn.surname, dcn.name, dcn.patronymic;
+
+/*31. Выбрать все данные студента, который старше какого-нибудь преподавателя.*/
+SELECT DISTINCT std.*
+FROM students std
+	JOIN teachers tcr ON tcr.birthday > std.birthday;
+
+/*33. Выбрать тройки однофамильцев среди студентов.*/
+SELECT s1.id, s2.id, s3.id
+FROM Students s1
+	JOIN Students s2 ON s1.surname = s2.surname
+	JOIN Students s3 ON s2.surname = s3.Surname
+WHERE s1.id > s2.id AND s2.id > s3.id;
+
+/*37. Для каждого студента факультета ПММ выбрать названия всех имеющихся в БД дисциплин.*/
+SELECT std.id, dcp.name
+FROM students std
+	CROSS JOIN disciplines dcp
+	JOIN faculties fct ON fct.id = std.faculty_id
+WHERE fct.name LIKE 'ПММ'; --без UPPER тоже работает
+
+/*44. Выбрать фамилию, имя, отчество преподавателей факультета ПММ, средняя оценка у которых ниже 3.7.*/
+SELECT tcr.surname, tcr.name, ISNULL(tcr.patronymic,'') 'patronymic'--, prm.discipline_id
+FROM teachers tcr
+	JOIN faculties fct ON fct.id = tcr.faculty_id
+	JOIN performance prm ON tcr.id = prm.teacher_id
+WHERE fct.name LIKE 'ПММ'
+GROUP BY tcr.id, tcr.surname, tcr.name, tcr.patronymic, prm.teacher_id--, prm.discipline_id
+HAVING ROUND(AVG(CAST(prm.mark AS float)),2) < 3.7
