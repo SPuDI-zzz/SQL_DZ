@@ -406,7 +406,7 @@ FROM students std
 	LEFT JOIN teachers tcr ON tcr.id = prm.teacher_id;
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------------
-  31 03 2022
+  07 04 2022
 -------------------------------------------------------------------------------------------------------------------------------------------------*/ 
 
 /*0. Посчистать количество однофамильцев среди студентов.*/
@@ -495,3 +495,260 @@ FROM teachers tcr
 WHERE fct.name LIKE 'ПММ'
 GROUP BY tcr.id, tcr.surname, tcr.name, tcr.patronymic, prm.teacher_id--, prm.discipline_id
 HAVING ROUND(AVG(CAST(prm.mark AS float)),2) < 3.7
+
+/*-------------------------------------------------------------------------------------------------------------------------------------------------
+  21 04 2022
+-------------------------------------------------------------------------------------------------------------------------------------------------*/
+
+/*2. Выбрать название должностей с минимальным окладом.*/
+SELECT pst.name
+FROM posts pst
+WHERE pst.salary = (
+	SELECT MIN(salary)
+	FROM posts
+);
+
+/*3. Выбрать все данные о преподавателях, получающих максимальный оклад.*/
+SELECT thr.*
+FROM teachers thr
+JOIN post_teachers pst_tcr
+	ON thr.id = pst_tcr.teacher_id
+JOIN posts pst
+	ON pst.id = pst_tcr.post_id
+WHERE pst.salary = (
+	SELECT MAX(p.salary)
+	FROM  posts p
+);
+
+/*4. Выбрать все данные о самом молодом преподавателе.*/
+SELECT *
+FROM teachers tcr
+WHERE tcr.birthday = (
+	SELECT MAX(t.birthday)
+	FROM teachers t
+);
+
+/*5. Выбрать все данные о самом молодом и самом старшем преподавателях.*/
+SELECT tcr.*
+FROM teachers tcr
+WHERE tcr.birthday = (
+	SELECT MAX(t.birthday)
+	FROM teachers t
+)
+OR tcr.birthday = (
+	SELECT MIN(t.birthday)
+	FROM teachers t
+);
+
+/*6. Выбрать название должностей с минимальным окладом.*/
+SELECT pst.name
+FROM posts pst
+WHERE pst.salary = (
+	SELECT MIN(p.salary)
+	FROM posts p
+);
+
+/*7. Выбрать группы, в которых учиться столько же студентов, сколько на 2 курсе в 10 группе.*/
+SELECT std.[group]
+FROM students std
+GROUP BY std.course, std.[group]
+HAVING COUNT(*) = (
+	SELECT COUNT(*)
+	FROM students s
+	WHERE s.course = 2 AND s.[group] = 10
+);
+
+/*8. Выбрать названия дисциплин, которые сдавались студентами 2 курса 10 группой.*/
+SELECT DISTINCT dcp.name
+FROM disciplines dcp
+JOIN performance prm
+	ON dcp.id = prm.discipline_id
+JOIN students std
+	ON std.id = prm.student_number_id
+WHERE std.course = 2 AND std.[group] = 10;
+
+/*9. Выбрать все данные преподавателей, которые работают на одном факультете с преподавателем Ивановым Иван Ивановичем.*/
+SELECT tcr.*
+FROM teachers tcr
+JOIN faculties fct
+	ON fct.id = tcr.faculty_id
+WHERE fct.id = (
+	SELECT f.id
+	FROM faculties f
+	JOIN teachers t
+		ON f.id = t.faculty_id
+	WHERE TRIM(t.name) LIKE 'Иван' AND TRIM(t.surname) LIKE 'Иванов' AND TRIM(t.patronymic) LIKE 'Иванович'
+);
+
+/*10. Выбрать названия факультетов, на которых средняя стипендия ниже средней стипендии на факультете ПММ.*/
+SELECT fct.name
+FROM faculties fct
+JOIN students std
+	ON fct.id = std.faculty_id
+GROUP BY fct.id, fct.name
+HAVING AVG(std.[grant]) = (
+	SELECT AVG()
+	FROM students s
+	JOIN faculties f
+		ON f.id = s.faculty_id
+	WHERE TRIM(f.name) LIKE 'ПММ'
+);
+
+/*14. Выбрать все данные о студентах, которые учатся на курсах, на которых менее 1000 студентов.*/
+SELECT std.*
+FROM students std
+WHERE std.course = (
+	SELECT course
+	FROM students
+	GROUP BY course
+	HAVING COUNT(*) < 1000
+);
+
+/*20. Вывести фамилию, имя, отчество студентов, обучающихся в группах, в которых менее 12 человек.*/
+SELECT std.surname, std.name, ISNULL(patronymic, '') patronymic
+FROM students std
+WHERE std.[group] IN (
+	SELECT s.[group]
+	FROM students s
+	WHERE std.[group] = s.[group]
+	GROUP BY s.[group]
+	HAVING COUNT(*) < 12
+);
+
+/*-------------------------------------------------------------------------------------------------------------------------------------------------
+  28 04 2022
+-------------------------------------------------------------------------------------------------------------------------------------------------*/
+
+/*0. Выбрать id_преподавателя, фамилию, имя, отчество преподавателя, которой получает максимальный оклад на своем факультете.*/
+SELECT tcr.id, tcr.surname, tcr.name, ISNULL(tcr.patronymic, '') patronymic
+FROM teachers tcr
+JOIN post_teachers pst_tcr
+	ON tcr.id = pst_tcr.teacher_id
+JOIN posts pst
+	ON pst.id = pst_tcr.post_id
+WHERE pst.salary = (
+	SELECT MAX(p.salary)
+	FROM teachers t
+	JOIN post_teachers pt
+		ON t.id = pt.teacher_id
+	JOIN posts p
+		ON p.id = pt.post_id
+	WHERE tcr.faculty_id = t.faculty_id
+);
+
+/*1. Выбрать данные о самом молодом и самом старшем студентах в каждой группе.*/
+SELECT std.*
+FROM students std
+WHERE std.birthday = (
+	SELECT MAX(s.birthday)
+	FROM students s
+	WHERE s.course = std.course AND s.[group] = std.[group]
+	GROUP BY s.course, s.[group]
+)
+OR std.birthday = (
+	SELECT MIN(s.birthday)
+	FROM students s
+	WHERE s.course = std.course AND s.[group] = std.[group]
+	GROUP BY s.course, s.[group]
+);
+
+SELECT std.*
+FROM students std
+JOIN (
+	SELECT  s.course, s.[group], MAX(s.birthday) Yongest, MIN(s.birthday) Oldest
+	FROM students s
+	GROUP BY s.course, s.[group]
+) yOrO
+	ON std.course = yOrO.course AND std.[group] = yOrO.[group]
+WHERE std.birthday = yOrO.Oldest OR std.birthday = yOrO.Yongest
+
+/*2. Выбрать данные о студентах, средний бал которых больше, чем средий бал группы.*/
+SELECT std.*
+FROM students std
+WHERE (
+	SELECT AVG(CAST(p.mark AS float))
+	FROM performance p
+	WHERE std.id = p.student_number_id
+) > (
+	SELECT AVG(CAST(p.mark AS float))
+	FROM students s
+	JOIN performance p
+		ON s.id = p.student_number_id
+	WHERE std.course = s.course AND std.[group] = s.[group]
+);
+
+/*16. Выбрать фамилии студентов, которые получают стипендию больше, чем средняя стипендия на их факультете.*/
+SELECT std.surname
+FROM students std
+WHERE std.[grant] > (
+	SELECT AVG(s.[grant])
+	FROM students s
+	WHERE s.faculty_id = std.faculty_id
+);
+
+/*18. Выбрать курсы и группы без повторений тех факультетов, на которых преподается дисциплина «Базы данных».*/
+SELECT DISTINCT std.course, std.[group]
+FROM students std
+WHERE std.faculty_id IN (
+	SELECT s.faculty_id
+	FROM Students s
+	JOIN Performance p 
+		ON s.id = p.student_number_id
+	JOIN Disciplines d 
+		ON d.id = p.discipline_id
+	WHERE TRIM(d.Name) LIKE 'Базы данных'
+);
+
+/*19. Выбрать по каждой должности ФИО преподавателя, который принят на работу в эту должность последними.*/
+SELECT pst.Name, tcr.Surname, tcr.Name, ISNULL(tcr.Patronymic, '') patronymic
+FROM posts pst
+JOIN post_teachers pst_tcr
+	ON pst_tcr.post_id = pst.id
+JOIN teachers tcr 
+	ON tcr.id = pst_tcr.teacher_id
+WHERE pst_tcr.entry_date = (
+	SELECT MAX(pt.entry_date)
+	FROM post_teachers pt
+	JOIN posts p 
+		ON p.id = pt.post_id
+	WHERE p.id = pst.id
+);
+
+/*22. Выбрать название факультета, ФИО декана, количество человек, работающих на факультете и общее количество человек, работающих в ВУЗе.*/
+SELECT fct.name, tcr.Surname, tcr.Name, ISNULL(tcr.Patronymic, '') patronymic, (
+	SELECT COUNT(*)
+	FROM teachers t
+	WHERE fct.id = t.faculty_id
+), (
+	SELECT COUNT(*)
+	FROM teachers
+)
+FROM faculties fct
+LEFT JOIN teachers tcr
+	ON tcr.id = fct.dean_id;
+
+/*29. Выбрать названия дисциплин, которые на 5 сдали 2/3 от всех сдававших.*/
+SELECT dcp.name
+FROM disciplines dcp
+WHERE CAST(0.66 * (
+	SELECT COUNT(*)
+	FROM performance p
+	WHERE dcp.id = p.discipline_id
+) AS bigint) = (
+	SELECT COUNT(*)
+	FROM performance p
+	WHERE dcp.id = p.discipline_id AND p.mark = 5
+);
+
+/*001. Выбрать названия дисциплин, для которых количество студентов, сдавших дисциплину на 5 и 4, превышает количество студентов, сдавших эту дисциплину на 3 и 2.*/
+SELECT dcp.name
+FROM disciplines dcp
+WHERE (
+	SELECT COUNT(*)
+	FROM performance p
+	WHERE dcp.id = p.discipline_id AND p.mark IN (4, 5)
+) > (
+	SELECT COUNT(*)
+	FROM performance p
+	WHERE dcp.id = p.discipline_id AND p.mark IN (2, 3)
+);
