@@ -587,7 +587,7 @@ JOIN students std
 	ON fct.id = std.faculty_id
 GROUP BY fct.id, fct.name
 HAVING AVG(std.[grant]) = (
-	SELECT AVG()
+	SELECT AVG(s.[grant])
 	FROM students s
 	JOIN faculties f
 		ON f.id = s.faculty_id
