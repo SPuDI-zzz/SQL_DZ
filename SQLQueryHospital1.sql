@@ -1,12 +1,12 @@
-USE Hospital;
+п»їUSE Hospital;
 GO
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------------
   05 05 2022
 -------------------------------------------------------------------------------------------------------------------------------------------------*/
 
-/*27. Вывести фамилию, имя, отчество врачей, которые сделали более 20 приемов в один день.
-Результат упорядочить по фамилии в порядке обратном лексикографическому.*/
+/*27. Р’С‹РІРµСЃС‚Рё С„Р°РјРёР»РёСЋ, РёРјСЏ, РѕС‚С‡РµСЃС‚РІРѕ РІСЂР°С‡РµР№, РєРѕС‚РѕСЂС‹Рµ СЃРґРµР»Р°Р»Рё Р±РѕР»РµРµ 20 РїСЂРёРµРјРѕРІ РІ РѕРґРёРЅ РґРµРЅСЊ.
+Р РµР·СѓР»СЊС‚Р°С‚ СѓРїРѕСЂСЏРґРѕС‡РёС‚СЊ РїРѕ С„Р°РјРёР»РёРё РІ РїРѕСЂСЏРґРєРµ РѕР±СЂР°С‚РЅРѕРј Р»РµРєСЃРёРєРѕРіСЂР°С„РёС‡РµСЃРєРѕРјСѓ.*/
 WITH receptionsDay AS (
 	SELECT r.serviceNumber_id, COUNT(*) receptionDay
 	FROM receptions r
@@ -19,19 +19,19 @@ JOIN receptionsDay r
 WHERE r.receptionDay > 20
 ORDER BY 1 DESC;
 
-/*31. Вывести информацию обо всех врачах, и если были приемы у врача сегодня, то количество принятых пациентов.*/
+/*31. Р’С‹РІРµСЃС‚Рё РёРЅС„РѕСЂРјР°С†РёСЋ РѕР±Рѕ РІСЃРµС… РІСЂР°С‡Р°С…, Рё РµСЃР»Рё Р±С‹Р»Рё РїСЂРёРµРјС‹ Сѓ РІСЂР°С‡Р° СЃРµРіРѕРґРЅСЏ, С‚Рѕ РєРѕР»РёС‡РµСЃС‚РІРѕ РїСЂРёРЅСЏС‚С‹С… РїР°С†РёРµРЅС‚РѕРІ.*/
 WITH numberOfPatientsToday AS (
 	SELECT r.serviceNumber_id, COUNT(*) countPatients
 	FROM receptions r
 	WHERE DAY(GETDATE()) = DAY(r.date) AND MONTH(GETDATE()) = MONTH(r.date) AND YEAR(GETDATE()) = YEAR(r.date)
 	GROUP BY r.serviceNumber_id	
 )
-SELECT d.*, ISNULL(CAST(r.countPatients AS nvarchar(50)),'') 'количество пациентов сегодня'
+SELECT d.*, ISNULL(CAST(r.countPatients AS nvarchar(50)),'') 'РєРѕР»РёС‡РµСЃС‚РІРѕ РїР°С†РёРµРЅС‚РѕРІ СЃРµРіРѕРґРЅСЏ'
 FROM doctors d
 LEFT JOIN numberOfPatientsToday r
 	ON d.id = r.serviceNumber_id;
 
-/*32. Вывести всю информацию о враче, принявшим больше всего пациентов сегодня.*/
+/*32. Р’С‹РІРµСЃС‚Рё РІСЃСЋ РёРЅС„РѕСЂРјР°С†РёСЋ Рѕ РІСЂР°С‡Рµ, РїСЂРёРЅСЏРІС€РёРј Р±РѕР»СЊС€Рµ РІСЃРµРіРѕ РїР°С†РёРµРЅС‚РѕРІ СЃРµРіРѕРґРЅСЏ.*/
 WITH mostPatientsToday AS (
 	SELECT TOP 1 COUNT(*) countPatients, r.serviceNumber_id
 	FROM receptions r
@@ -43,7 +43,7 @@ FROM doctors d
 JOIN mostPatientsToday r
 	ON d.id = r.serviceNumber_id;
 
-/*33. Выбрать ФИО пациентов, которые посетили всех врачей.*/
+/*33. Р’С‹Р±СЂР°С‚СЊ Р¤РРћ РїР°С†РёРµРЅС‚РѕРІ, РєРѕС‚РѕСЂС‹Рµ РїРѕСЃРµС‚РёР»Рё РІСЃРµС… РІСЂР°С‡РµР№.*/
 WITH visitedAllDoctors AS (
 	SELECT r.patient_id
 	FROM receptions r
@@ -53,23 +53,23 @@ WITH visitedAllDoctors AS (
 		FROM doctors
 	)
 )
-SELECT p.surname + ' ' + p.name + ISNULL(' ' + p.patronymic,'') 'ФИО пациентов, которые посетили всех врачей'
+SELECT p.surname + ' ' + p.name + ISNULL(' ' + p.patronymic,'') 'Р¤РРћ РїР°С†РёРµРЅС‚РѕРІ, РєРѕС‚РѕСЂС‹Рµ РїРѕСЃРµС‚РёР»Рё РІСЃРµС… РІСЂР°С‡РµР№'
 FROM patients p
 JOIN visitedAllDoctors r
 	ON p.id = r.patient_id;
 
-/*36. Для каждого високосного года вывести количество пациентов, рожденных в этом году.*/
+/*36. Р”Р»СЏ РєР°Р¶РґРѕРіРѕ РІРёСЃРѕРєРѕСЃРЅРѕРіРѕ РіРѕРґР° РІС‹РІРµСЃС‚Рё РєРѕР»РёС‡РµСЃС‚РІРѕ РїР°С†РёРµРЅС‚РѕРІ, СЂРѕР¶РґРµРЅРЅС‹С… РІ СЌС‚РѕРј РіРѕРґСѓ.*/
 SELECT YEAR(birthday) leapYear, COUNT(*) countPatients
 FROM patients
 WHERE ISDATE(CAST(birthday AS char(4))+ '0229') = 1
 GROUP BY YEAR(birthday);
 
-SELECT YEAR(birthday) Год, COUNT(*) Количество
+SELECT YEAR(birthday) Р“РѕРґ, COUNT(*) РљРѕР»РёС‡РµСЃС‚РІРѕ
 FROM patients
 WHERE YEAR(birthday) % 4 = 0 AND YEAR(birthday) % 100 != 0 OR YEAR(birthday) % 400 = 0
 GROUP BY YEAR(birthday);
 
-/*42. Вывести ФИО и дату рождения трех самых молодых врачей.*/
-SELECT TOP 3 d.surname + ' ' + d.name + ISNULL(' ' + d.patronymic,'') 'ФИО трех самых молодых врачей', d.birthday
+/*42. Р’С‹РІРµСЃС‚Рё Р¤РРћ Рё РґР°С‚Сѓ СЂРѕР¶РґРµРЅРёСЏ С‚СЂРµС… СЃР°РјС‹С… РјРѕР»РѕРґС‹С… РІСЂР°С‡РµР№.*/
+SELECT TOP 3 d.surname + ' ' + d.name + ISNULL(' ' + d.patronymic,'') 'Р¤РРћ С‚СЂРµС… СЃР°РјС‹С… РјРѕР»РѕРґС‹С… РІСЂР°С‡РµР№', d.birthday
 FROM doctors d
 ORDER BY d.birthday DESC;
