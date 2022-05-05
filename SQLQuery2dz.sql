@@ -236,7 +236,7 @@ SELECT faculty_id, AVG(CASE WHEN (MONTH(birthday)>=MONTH(GETDATE())
                       ELSE DATEDIFF(year, birthday,GETDATE())
 			    END) 'Age'
 FROM teachers
-GROUP BY 1;
+GROUP BY faculty_id;
 
 /*7. Выбрать номер месяца и количество первокурсников, рожденных в этот месяц.*/
 SELECT MONTH(birthday) AS MOUNTH, COUNT(*) 'countFirstCourseStudents'
