@@ -818,9 +818,27 @@ SELECT std.surname + ' ' + std.name + ISNULL(' ' + std.patronymic,''), COUNT(DIS
 FROM students std
 LEFT JOIN performance prm
 	ON std.id =prm.student_number_id AND prm.mark IN (4, 5)
-GROUP BY std.id, std.surname, std.name, std.patronymic
+GROUP BY std.id, std.surname, std.name, std.patronymic;
 
 /*28. Выбрать названия дисциплин, которые на 5 сдали 2/3 от всех сдававших.*/
+WITH markFive AS (
+	SELECT p.discipline_id, COUNT(*) cnt
+	FROM performance p
+	WHERE p.mark = 5
+	GROUP BY p.discipline_id
+),
+twoThirds AS (
+	SELECT p.discipline_id, CAST(0.67 * COUNT(*) AS int) c
+	FROM performance p
+	GROUP BY p.discipline_id
+)
+SELECT dcp.name
+FROM disciplines dcp
+JOIN markFive mf
+	ON mf.discipline_id = dcp.id
+JOIN twoThirds th
+	ON th.discipline_id = mf.discipline_id AND th.c = mf.cnt;
+
 SELECT dcp.name
 FROM disciplines dcp
 WHERE CAST(0.67 * (
