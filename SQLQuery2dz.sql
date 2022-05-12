@@ -1,5 +1,4 @@
-﻿
-USE University;
+﻿USE University;
 GO
 
 /*3. Выбрать фамилию и инициалы студентов в одном столбце. Результат отсортировать по фамилии в порядке обратном лексикографическому.*/
@@ -752,3 +751,89 @@ WHERE (
 	FROM performance p
 	WHERE dcp.id = p.discipline_id AND p.mark IN (2, 3)
 );
+
+/*-------------------------------------------------------------------------------------------------------------------------------------------------
+  12 05 2022
+-------------------------------------------------------------------------------------------------------------------------------------------------*/
+
+/*11. Выбрать названия факультетов без преподавателей.*/
+SELECT fct.name
+FROM faculties fct
+WHERE NOT EXISTS(
+	SELECT 1
+	FROM teachers tcr
+	WHERE fct.id = tcr.faculty_id
+);
+
+/*12. Выбрать все данные о студентах, у которых еще не было сессии.*/
+SELECT std.*
+FROM students std
+WHERE NOT EXISTS(
+	SELECT 1
+	FROM students s
+	JOIN performance p
+		ON s.id =p.student_number_id
+	WHERE std.id = s.id
+);
+
+/*24. Вывести фамилии трех студентов с наибольшим средним балом. (TOP пользваться нельзя)*/
+WITH AVGMarks AS (
+	SELECT p.student_number_id, AVG(CAST(p.mark AS float)) avgMark
+	FROM performance p
+	GROUP BY p.student_number_id
+)
+SELECT std.surname, std.id
+FROM AVGMarks am
+JOIN students std
+	ON std.id = am.student_number_id
+WHERE 2 >= (
+	SELECT COUNT(*)
+	FROM AVGMarks a
+	WHERE a.avgMark > am.avgMark
+);
+
+/*25. Вывести слова “Есть однофамильцы”, если есть однофамильцы по всей БД и вывести “Однофамильцев нет”, если таковых нет.*/
+SELECT CASE WHEN EXISTS(
+	SELECT std.surname
+	FROM students std
+	UNION ALL
+	SELECT tcr.surname
+	FROM teachers tcr
+	GROUP BY surname
+	HAVING COUNT(*) > 1
+)
+	THEN 'Есть однофамильцы'
+	ElSE 'Однофамильцев нет'
+	END 'Наличие однофамильцев';
+
+/*26. Вывести в одном столбце ФИО студентов и преподавателей. Для преподавателей указать количество предметов, которые ведет преподаватель, для студентов -
+количество предметов, по которым студент имеет оценку 5 или 4. Результат отсортировать по ФИО в лексикографическом порядке.*/
+SELECT tcr.surname + ' ' + tcr.name + ISNULL(' ' + tcr.patronymic,'') 'ФИО', COUNT(DISTINCT prm.discipline_id) 'Количество предметов'
+FROM teachers tcr
+LEFT JOIN performance prm
+	ON tcr.id = prm.teacher_id
+GROUP BY tcr.id, tcr.surname, tcr.name, tcr.patronymic
+UNION ALL
+SELECT std.surname + ' ' + std.name + ISNULL(' ' + std.patronymic,''), COUNT(DISTINCT prm.discipline_id)
+FROM students std
+LEFT JOIN performance prm
+	ON std.id =prm.student_number_id AND prm.mark IN (4, 5)
+GROUP BY std.id, std.surname, std.name, std.patronymic
+
+/*28. Выбрать названия дисциплин, которые на 5 сдали 2/3 от всех сдававших.*/
+SELECT dcp.name
+FROM disciplines dcp
+WHERE CAST(0.67 * (
+	SELECT COUNT(*)
+	FROM performance p
+	WHERE dcp.id = p.discipline_id
+) AS int) = (
+	SELECT COUNT(*)
+	FROM performance p
+	WHERE dcp.id = p.discipline_id AND p.mark = 5
+) AND (
+	SELECT COUNT(*)
+	FROM performance p
+	WHERE dcp.id = p.discipline_id AND p.mark = 5
+) != 0;
+
