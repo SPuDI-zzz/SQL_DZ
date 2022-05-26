@@ -855,3 +855,61 @@ WHERE CAST(0.67 * (
 	WHERE dcp.id = p.discipline_id AND p.mark = 5
 ) != 0;
 
+/*-------------------------------------------------------------------------------------------------------------------------------------------------
+  19 05 2022
+-------------------------------------------------------------------------------------------------------------------------------------------------*/
+
+/*22. Вывести фамилию, имя, отчество студентов, рожденных в тот год, в котором меньше всего студентов было рождено.*/
+WITH Year_CTE (Yea, Cou) AS (
+	SELECT TOP 1 YEAR(s.birthday), COUNT(*)
+	FROM students s
+	GROUP BY YEAR(s.birthday)
+	ORDER BY 2
+)
+SELECT s.surname, s.name, ISNULL(s.patronymic, '') 'patronymic'
+FROM students s
+JOIN Year_CTE y
+	ON YEAR(s.birthday) = y.Yea;
+
+WITH Year_CTE AS (
+	SELECT YEAR(s.birthday) YC
+	FROM students s
+	GROUP BY YEAR(s.birthday)
+	HAVING COUNT(*) <= ALL (
+		SELECT COUNT(*)
+		FROM students std
+		GROUP BY YEAR(std.birthday)
+	)
+)
+SELECT s.surname, s.name, ISNULL(s.patronymic, '') 'patronymic'
+FROM students s
+JOIN Year_CTE y
+	ON YEAR(s.birthday) = y.YC;
+
+/*23. Вывести месяц, в который родилось больше всего студентов.*/
+SELECT MONTH(s.birthday) 'месяц, в который родилось больше всего студентов'
+FROM students s
+GROUP BY MONTH(s.birthday)
+HAVING COUNT(*) >= ALL
+	(SELECT COUNT(*)
+	FROM students s
+	GROUP BY MONTH(s.birthday));
+
+SELECT TOP 1 MONTH(s.birthday) 'месяц, в который родилось больше всего студентов', COUNT(*) 'количество студентов'
+FROM students s
+GROUP BY MONTH(s.birthday)
+ORDER BY 2 DESC;
+
+/*27. Выбрать два зимних месяца, в которые родилось больше всего преподавателей и студентов.*/
+WITH Month_CTE (Mon) AS (
+	SELECT MONTH(s.Birthday)
+	FROM Students s
+	UNION ALL
+	SELECT MONTH(t.Birthday)
+	FROM Teachers t
+)
+SELECT TOP 2 Mon, COUNT(*) 'count'
+FROM Month_CTE
+WHERE Mon IN (12, 1, 2)
+GROUP BY Mon
+ORDER BY 2 DESC;
